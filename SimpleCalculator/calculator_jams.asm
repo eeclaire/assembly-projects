@@ -5,10 +5,12 @@ input: .space 40	# create some space for the user input
 nospace: .space 40	# space for the user input minus white space
 output_q: .space 40	# create  space for the shunting yard output queue
 operator_stack: .space 40	# create space for the shunting yard operator stack
+variables: .space 52	# create space for the values of every variable
 
 success: .asciiz "Exiting now!!!\n"
 invparens: .asciiz "Error: invalid parentheses!\n"
 invcomb: .asciiz "Error: invalid combination!\n"
+invvar: .asciiz "Error: undefined variable\n"
 invsym: .asciiz " is not a valid symbol!\n"
 nulldiv: .asciiz "Error: cannot divide by 0!\n"
 answer: .asciiz "Ans: "
@@ -38,7 +40,11 @@ main:
 	
 	jal val_sym	# jump and link return to function to validate symbols in the string
 	
+	jal var_declaration	# jump and link return to function to save user-defined variables
+	
 	jal val_comb	# jump and link return to function to validate combinations of operators/operands
+	
+	jal replace_variables	# jump and link to function to replace variables in a string with their user-defined value
 	
 	jal shunting_yard	# jump and link return to function to reformat intput into RPN
 	
@@ -202,6 +208,32 @@ val_sym:
 
 # End of val_sym -------------------------------------------------------------------------------------------------------------------
 
+var_declaration:
+	la $a1, nospace		# load address of spaceless string into $a1
+	lb $t0, 1($a1) 		# check the second element the user inputted
+	beq $t0, '=', var_initialization
+	
+	jr $ra
+
+var_initialization:
+	la $a0, variables	# load address of variables string
+	lb $t7, 0($a0)
+	lb $t0 0($a1) 		# load the name of the variable in $t0
+	lb $t1, 2($a1)		# load the value of the variable in $t1
+	
+	try_storing:
+	 	bne $t7, 0, shift	# shift by 2 bytes if space already occupied
+		sb $t0, 0($a0)
+		sb $t1, 1($a0)
+		j main
+				
+shift:
+	addi $a0, $a0, 2	# shift by two bytes
+	lb $t7, 0($a0)
+	j try_storing	
+
+# End of var_declaration -------------------------------------------------------------------------------------------------------------------
+
 val_comb:
 	# loads word into $a1 and increments through it
 	la $a1, nospace		# load address of spaceless string into $a1
@@ -272,7 +304,99 @@ val_comb:
 
 # End of val_comb ------------------------------------------------------------------------------------------------------------------
 
+replace_variables:
+	la $a1, nospace		# load address of spaceless string into $a1
+	
+	rv_L1:	
+		lb $t0, 0($a1)		# load first byte of spaceless string into $t0
+		
+		beq $t0, 'a', var
+		beq $t0, 'b', var
+		beq $t0, 'c', var
+		beq $t0, 'd', var
+		beq $t0, 'e', var
+		beq $t0, 'f', var
+		beq $t0, 'g', var
+		beq $t0, 'h', var
+		beq $t0, 'i', var
+		beq $t0, 'j', var
+		beq $t0, 'k', var
+		beq $t0, 'l', var
+		beq $t0, 'm', var
+		beq $t0, 'n', var
+		beq $t0, 'o', var
+		beq $t0, 'p', var
+		beq $t0, 'q', var
+		beq $t0, 'r', var
+		beq $t0, 's', var
+		beq $t0, 't', var
+		beq $t0, 'u', var
+		beq $t0, 'v', var
+		beq $t0, 'w', var
+		beq $t0, 'x', var
+		beq $t0, 'y', var
+		beq $t0, 'z', var
+				
+		beq $t0, 'A', var
+		beq $t0, 'B', var
+		beq $t0, 'C', var
+		beq $t0, 'D', var
+		beq $t0, 'E', var
+		beq $t0, 'F', var
+		beq $t0, 'G', var
+		beq $t0, 'H', var
+		beq $t0, 'I', var
+		beq $t0, 'J', var
+		beq $t0, 'K', var
+		beq $t0, 'L', var
+		beq $t0, 'M', var
+		beq $t0, 'N', var
+		beq $t0, 'O', var
+		beq $t0, 'P', var
+		beq $t0, 'Q', var
+		beq $t0, 'R', var
+		beq $t0, 'S', var
+		beq $t0, 'T', var
+		beq $t0, 'U', var
+		beq $t0, 'V', var
+		beq $t0, 'W', var
+		beq $t0, 'X', var
+		beq $t0, 'Y', var
+		beq $t0, 'Z', var
+		
+	beq $t0, '\0', rv_return
+	
+	addi $a1, $a1, 1
+	j rv_L1
+		
+var:
+	la $a2, variables
+	
+	# loop through the saved variables
+	rv_vL:
+		lb $t1, 0($a2)
+	
+		beq $t0, $t1, replace
+		beq $t0, '\0', rv_error
+		
+		addi $a2, $a2, 2	# increment by 2 to skip over number
+		j rv_vL
+	
+replace:
+	lb $t1, 1($a2)	# load up the number that corresponds to that letter
+	sb $t1, 0($a1)	
+	
+	addi $a1, $a1, 1
+	j rv_L1
 
+rv_error:
+	la $a0, invvar		# load address of combination error message
+	li $v0, 4	
+	syscall			# print out the error message
+	j main
+
+rv_return:
+	jr $ra
 # Include parentheses and also negative numbers
 
 shunting_yard:
@@ -312,7 +436,7 @@ shunting_yard:
 		beq $t0, '-', check_stack_plus_min
 		
 		j final_check
-		
+
 	pop_all_in_parens:
 		lb $t2, 0($sp)
 		beq $t2, '(', remove_parens
@@ -413,7 +537,7 @@ shunting_yard:
 		# to the contents of $s2 (which contains any potential tens, hundreds, etc) and save it into $0
 		# and push $s0 to the output queue. Make sure to clear $s2
 		addi $s1, $t0, -48	# place the numeric value of $t0 into $s1
-		lb $s7, 1($a0)		# load first byte of spaceless string into $t0
+		lb $s7, 1($a0)		# load next byte into $s7 to check if number
 		beq $s7, '0', do_multiple_digits
 		beq $s7, '1', do_multiple_digits
 		beq $s7, '2', do_multiple_digits
@@ -425,10 +549,12 @@ shunting_yard:
 		beq $s7, '8', do_multiple_digits
 		beq $s7, '9', do_multiple_digits
 		
+		# if no following digit, engage send_to_q routine
+		
 	send_to_q:	
 		mul $s2, $s2, 10
 		add $s0, $s1, $s2	# add the potential contents of $s2 to $s1 and save in $s0
-		sb $s0, 0($a1)		# copy byte from input string into output queue
+		sw $s0, 0($a1)		# copy byte from input string into output queue (sw, NOT sb)
 		addi $a1, $a1, 4	# increment pointer to output queue
 		add $s2, $zero, $zero
 		j sy_nextbyte
@@ -445,8 +571,101 @@ shunting_yard:
 		# increment stack pointer
 		addi $sp, $sp, -1	# increment stack pointer by 1 byte
 		sb $t0, 0($sp)		# stores the byte of the receiver string into address sp points to
-		j sy_nextbyte		
 		
+		# COME BACk
+		# catch if the next input byte is +/-
+		lb $t3, 1($a0)		# load next byte 
+		beq $t3, '-', condense_min	# there's a - after the *, /, +, -, or -
+		beq $t3, '+', condense_max	# there's a + after the *, /, +, -, or -
+		
+		j sy_nextbyte	
+	
+	# deals with condensing things that start with a -		
+	condense_min:
+		addi $a0, $a0, 1	
+		lb $t4, 1($a0)		# load following byte
+		
+		# there should be a looping case here. Ignore for now
+		# if there's another operator here, engage loop to condense
+		
+		# otherwise, if this negative sign is followed by a number, obtain number 
+		addi $t4, $t4, -48	# convert to numbers
+		
+		# deal with multiple digit numbers:
+		lb $s6, 2($a0)		# load byte after that
+		
+		beq $s6, '0', multidigit_condense_min
+		beq $s6, '1', multidigit_condense_min
+		beq $s6, '3', multidigit_condense_min
+		beq $s6, '4', multidigit_condense_min
+		beq $s6, '5', multidigit_condense_min
+		beq $s6, '6', multidigit_condense_min
+		beq $s6, '7', multidigit_condense_min
+		beq $s6, '8', multidigit_condense_min
+		beq $s6, '9', multidigit_condense_min
+		
+		
+		add $t4, $t4, $t5	# bring back numbers above the units place
+		add $t5, $zero, $zero
+		sub $t0, $zero, $t4	# Change this to deal with multiple digit numbers
+		
+		# PUSH TO QUEUE 
+		sw $t0, 0($a1)		# copy byte from input string into output queue (sw, NOT sb)
+		addi $a1, $a1, 4	# increment pointer to output queue
+		
+		# reset $t0 
+		addi $a0, $a0, 1
+		lb $t0, 0($a0)		
+		
+		j sy_nextbyte
+		
+	multidigit_condense_min:
+		add $t5, $t5, $t4
+		mul $t5, $t5, 10 
+		j condense_min
+		
+	condense_max:
+		addi $a0, $a0, 1	
+		lb $t4, 1($a0)		# load following byte
+		
+		# there should be a looping case here. Ignore for now
+		# if there's another operator here, engage loop to condense
+		
+		# otherwise, if this negative sign is followed by a number, obtain number 
+		addi $t4, $t4, -48	# convert to numbers
+		
+		# deal with multiple digit numbers:
+		lb $s6, 2($a0)		# load byte after that
+		
+		beq $s6, '0', multidigit_condense_max
+		beq $s6, '1', multidigit_condense_max
+		beq $s6, '3', multidigit_condense_max
+		beq $s6, '4', multidigit_condense_max
+		beq $s6, '5', multidigit_condense_max
+		beq $s6, '6', multidigit_condense_max
+		beq $s6, '7', multidigit_condense_max
+		beq $s6, '8', multidigit_condense_max
+		beq $s6, '9', multidigit_condense_max
+		
+		
+		add $t4, $t4, $t5	# bring back numbers above the units place
+		add $t5, $zero, $zero
+		add $t0, $zero, $t4	# Change this to deal with multiple digit numbers
+		
+		# PUSH TO QUEUE 
+		sw $t0, 0($a1)		# copy byte from input string into output queue (sw, NOT sb)
+		addi $a1, $a1, 4	# increment pointer to output queue
+		
+		# reset $t0 
+		addi $a0, $a0, 1
+		lb $t0, 0($a0)		
+		
+		j sy_nextbyte
+		
+	multidigit_condense_max:
+		add $t5, $t5, $t4
+		mul $t5, $t5, 10 
+		j condense_max
 		
 	pop_to_output_queue_mul_div:
 		# do something here
